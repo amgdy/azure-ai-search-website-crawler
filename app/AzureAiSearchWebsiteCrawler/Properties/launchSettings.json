@@ -1,0 +1,18 @@
+{
+  "profiles": {
+    "AzureAiSearchWebsiteCrawler": {
+      "commandName": "Project"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker",
+      "environmentVariables": {
+        "AzureOpenAi__EndpointUrl": "",
+        "AzureOpenAi__ApiKey": "",
+        "AzureAiSearch__EndpointUrl": "",
+        "AzureAiSearch__ApiKey": "",
+        "WebCrawler__Url": "",
+        "APPLICATIONINSIGHTS_CONNECTION_STRING": ""
+      }
+    }
+  }
+}

@@ -1,0 +1,3 @@
+﻿global using AzureAiSearchWebsiteCrawler.Configs;
+global using AzureAiSearchWebsiteCrawler.Models;
+global using AzureAiSearchWebsiteCrawler.Utilities;
