@@ -63,7 +63,7 @@ jobs:
         id: build-and-push
         with:
           context: app/AzureAiSearchWebsiteCrawler
-          file: src/AzureAiSearchWebsiteCrawler/Dockerfile
+          file: app/AzureAiSearchWebsiteCrawler/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
