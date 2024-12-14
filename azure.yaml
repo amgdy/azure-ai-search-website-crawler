@@ -4,9 +4,10 @@ name: azure-ai-search-website-crawler
 metadata:
     template: azd-init@1.11.0
 services:
-    containerAppsJob:
+    crawler-container-app-job:
         project: app/AzureAiSearchWebsiteCrawler
         host: containerapp
         language: dotnet
         docker:
             path: Dockerfile
+
