@@ -3,11 +3,24 @@
 name: azure-ai-search-website-crawler
 metadata:
     template: azd-init@1.11.0
-services:
-    crawler-container-app-job:
-        project: app/AzureAiSearchWebsiteCrawler
-        host: containerapp
-        language: dotnet
-        docker:
-            path: Dockerfile
+# AZD is not yet support Azure Container App Job service so we deploy it manually
+# services:
+#     job:
+#         project: app/AzureAiSearchWebsiteCrawler
+#         host: containerapp
+#         language: dotnet
+#         docker:
+#             path: Dockerfile
 
+hooks:
+    postprovision:
+        windows:
+            shell: pwsh
+            continueOnError: false
+            interactive: true
+            run: ./scripts/Deploy-AzureContainerAppJob.ps1
+        posix:
+            shell: sh
+            continueOnError: false
+            interactive: true
+            run: ./scripts/deploy-azure-container-app-job.sh

@@ -1,8 +1,8 @@
 param exists bool
 param name string
 
-resource existingApp 'Microsoft.App/containerApps@2023-05-02-preview' existing = if (exists) {
+resource existingAppJob 'Microsoft.App/jobs@2024-10-02-preview' existing = if (exists) {
   name: name
 }
 
-output containers array = exists ? existingApp.properties.template.containers : []
+output containers array = exists ? existingAppJob.properties.template.containers : []

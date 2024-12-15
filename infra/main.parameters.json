@@ -8,7 +8,7 @@
     "location": {
       "value": "${AZURE_LOCATION}"
     },
-    "azureAiSearchWebsiteCrawlerExists": {
+    "jobExists": {
       "value": "${SERVICE_AZURE_AI_SEARCH_WEBSITE_CRAWLER_RESOURCE_EXISTS=false}"
     },
     "azureAiSearchWebsiteCrawlerDefinition": {

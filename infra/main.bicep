@@ -9,7 +9,7 @@ param environmentName string
 @description('Primary location for all resources')
 param location string
 
-param azureAiSearchWebsiteCrawlerExists bool
+param jobExists bool
 @secure()
 param azureAiSearchWebsiteCrawlerDefinition object
 
@@ -59,6 +59,7 @@ param webCrawlerMaxBatchSize int = 100
 
 var tags = {
   'azd-env-name': environmentName
+  'azd-repo': 'https://github.com/amgdy/azure-ai-search-website-crawler'
 }
 
 // Organize resources in a resource group
@@ -75,10 +76,14 @@ module resources 'resources.bicep' = {
     location: location
     tags: tags
     principalId: principalId
-    azureAiSearchWebsiteCrawlerExists: azureAiSearchWebsiteCrawlerExists
+    jobExists: jobExists
     azureAiSearchWebsiteCrawlerDefinition: azureAiSearchWebsiteCrawlerDefinition
   }
 }
+
+output AZURE_TENANT_ID string = tenant().tenantId
+output AZURE_SUBSCRIPTION_ID string = subscription().subscriptionId
+output AZURE_RESOURCE_GROUP_NAME string = rg.name
 
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = resources.outputs.AZURE_CONTAINER_REGISTRY_ENDPOINT
 output AZURE_KEY_VAULT_ENDPOINT string = resources.outputs.AZURE_KEY_VAULT_ENDPOINT
@@ -100,3 +105,10 @@ output WEB_CRAWLER_MAX_PAGES_TO_CRAWL int = webCrawlerMaxPagesToCrawl
 output WEB_CRAWLER_MAX_CRAWL_DEPTH int = webCrawlerMaxCrawlDepth
 output WEB_CRAWLER_MAX_RETRY_ATTEMPTS int = webCrawlerMaxRetryAttempts
 output WEB_CRAWLER_MAX_BATCH_SIZE int = webCrawlerMaxBatchSize
+
+output AZURE_CONTAINER_APPS_ENVIRONMENT_NAME string = resources.outputs.AZURE_CONTAINER_APPS_ENVIRONMENT_NAME
+output AZURE_CONTAINER_APP_JOB_NAME string = resources.outputs.AZURE_CONTAINER_APP_JOB_NAME
+output AZURE_CONTAINER_APP_JOB_URL string = resources.outputs.AZURE_CONTAINER_APP_JOB_URL
+output AZURE_CONTAINER_REGISTRY_NAME string = resources.outputs.AZURE_CONTAINER_REGISTRY_NAME
+output AZURE_CONTAINER_REGISTRY_LOGIN_SERVER string = resources.outputs.AZURE_CONTAINER_REGISTRY_LOGIN_SERVER
+output AZD_IS_PROVISIONED bool = true

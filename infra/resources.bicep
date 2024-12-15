@@ -4,7 +4,7 @@ param location string = resourceGroup().location
 @description('Tags that will be applied to all resources')
 param tags object = {}
 
-param azureAiSearchWebsiteCrawlerExists bool
+param jobExists bool
 @secure()
 param azureAiSearchWebsiteCrawlerDefinition object
 
@@ -12,7 +12,7 @@ param azureAiSearchWebsiteCrawlerDefinition object
 param principalId string
 
 var abbrs = loadJsonContent('./abbreviations.json')
-var resourceToken = uniqueString(subscription().id, resourceGroup().id, location)
+var resourceToken = uniqueString(subscription().id, resourceGroup().id, location, environment().name)
 var appShortName = 'crawler'
 
 var additionalSettings = []
@@ -65,6 +65,7 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.11.0' = {
     tags: tags
     enableRbacAuthorization: false
     enablePurgeProtection: false
+    enableSoftDelete: false
     accessPolicies: [
       {
         objectId: principalId
@@ -123,16 +124,16 @@ module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.8.1
 }
 
 // Fetch latest image for the container app
-module azureAiSearchWebsiteCrawlerFetchLatestImage './modules/fetch-container-image.bicep' = {
+module latestImage './modules/fetch-container-image.bicep' = {
   name: 'azureAiSearchWebsiteCrawler-fetch-image'
   params: {
-    exists: azureAiSearchWebsiteCrawlerExists
+    exists: jobExists
     name: 'container-apps-job'
   }
 }
 
 // Container apps job
-module containerAppsJob 'br/public:avm/res/app/job:0.5.1' = {
+module containerAppJob 'br/public:avm/res/app/job:0.5.1' = {
   name: 'container-apps-job'
   params: {
     name: '${abbrs.appContainerAppsJobs}${resourceToken}-${appShortName}'
@@ -150,7 +151,7 @@ module containerAppsJob 'br/public:avm/res/app/job:0.5.1' = {
     ]
     environmentResourceId: containerAppsEnvironment.outputs.resourceId
     location: location
-    tags: union(tags, { 'azd-service-name': 'crawler-container-app-job' })
+    tags: union(tags, { 'azd-service-name': 'job' })
     secrets: [
       for secret in azureAiSearchWebsiteCrawlerSecrets: {
         name: secret.secretRef
@@ -160,7 +161,7 @@ module containerAppsJob 'br/public:avm/res/app/job:0.5.1' = {
     ]
     containers: [
       {
-        image: azureAiSearchWebsiteCrawlerFetchLatestImage.outputs.?containers[?0].?image ?? 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+        image: latestImage.outputs.?containers[?0].?image ?? 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
         name: 'crawler'
         resources: {
           cpu: '2'
@@ -191,5 +192,10 @@ module containerAppsJob 'br/public:avm/res/app/job:0.5.1' = {
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerRegistry.outputs.loginServer
 output AZURE_KEY_VAULT_ENDPOINT string = keyVault.outputs.uri
 output AZURE_KEY_VAULT_NAME string = keyVault.outputs.name
-output AZURE_CONTAINER_APPS_JOB_URL string = containerAppsJob.outputs.resourceId
-output AZURE_RESOURCE_AZURE_AI_SEARCH_WEBSITE_CRAWLER_ID string = containerAppsJob.outputs.resourceId
+output AZURE_CONTAINER_APPS_ENVIRONMENT_ID string = containerAppsEnvironment.outputs.resourceId
+output AZURE_CONTAINER_APPS_ENVIRONMENT_NAME string = containerAppsEnvironment.outputs.name
+output AZURE_CONTAINER_APP_JOB_NAME string = containerAppJob.outputs.name
+output AZURE_CONTAINER_APP_JOB_URL string = containerAppJob.outputs.resourceId
+output AZURE_CONTAINER_REGISTRY_NAME string = containerRegistry.outputs.name
+output AZURE_CONTAINER_REGISTRY_LOGIN_SERVER string = containerRegistry.outputs.loginServer
+output AZURE_RESOURCE_AZURE_AI_SEARCH_WEBSITE_CRAWLER_ID string = containerAppJob.outputs.resourceId
