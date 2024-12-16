@@ -43,8 +43,13 @@ builder.Services.AddOpenTelemetry()
 
         tracing.AddHttpClientInstrumentation();
         tracing.AddSource(ApplicationStartupService.ActivitySourceName);
-    })
-    .UseAzureMonitor();
+    });
+
+var appInsightsConnectionString = builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
+if (!string.IsNullOrEmpty(appInsightsConnectionString))
+{
+    builder.Services.AddOpenTelemetry().UseAzureMonitor();
+}
 
 // Use the OTLP exporter if the endpoint is configured.
 var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);

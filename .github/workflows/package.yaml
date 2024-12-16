@@ -53,8 +53,9 @@ jobs:
         with:
           images: ${{ steps.set-variables.outputs.REPOSITORY }}/${{ steps.set-variables.outputs.IMAGE }}
           tags: |
-            type=sha,priority=1000
-            type=ref,event=branch,priority=900
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
+            type=sha
+            type=ref,event=branch
 
       - name: Build and push
         uses: docker/build-push-action@v6

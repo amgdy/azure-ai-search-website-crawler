@@ -1,0 +1,80 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": {
+      "value": "${AZURE_ENV_NAME}"
+    },
+    "location": {
+      "value": "${AZURE_LOCATION}"
+    },
+    "jobExists": {
+      "value": "${SERVICE_AZURE_AI_SEARCH_WEBSITE_CRAWLER_RESOURCE_EXISTS=false}"
+    },
+    "azureAiSearchWebsiteCrawlerDefinition": {
+      "value": {
+        "settings": [
+          {
+            "name": "AzureOpenAi__EndpointUrl",
+            "value": "${AZURE_OPENAI_ENDPOINT_URL}"
+          },
+          {
+            "name": "AzureOpenAi__ApiKey",
+            "value": "${AZURE_OPENAI_API_KEY}",
+            "secret": true,
+            "secretRef": "azure-openai-apikey"
+          },
+          {
+            "name": "AzureAiSearch__EndpointUrl",
+            "value": "${AZURE_AI_SEARCH_ENDPOINT_URL}"
+          },
+          {
+            "name": "AzureAiSearch__ApiKey",
+            "value": "${AZURE_AI_SEARCH_API_KEY}",
+            "secret": true,
+            "secretRef": "azure-ai-search-apikey"
+          },
+          {
+            "name": "WebCrawler__Url",
+            "value": "${WEB_CRAWLER_URL}"
+          },
+          {
+            "name": "AzureOpenAi__EmbeddingModelDeployment",
+            "value": "${AZURE_OPENAI_EMBEDDING_MODEL_DEPLOYMENT=text-embedding-ada-002}"
+          },
+          {
+            "name": "AzureOpenAi__EmbeddingModelDimensions",
+            "value": "${AZURE_OPENAI_EMBEDDING_MODEL_DIMENSIONS=1536}"
+          },
+          {
+            "name": "AzureOpenAi__EmbeddingModelMaxTokens",
+            "value": "${AZURE_OPENAI_EMBEDDING_MODEL_MAX_TOKENS=8190}"
+          },
+          {
+            "name": "AzureAiSearch__IndexName",
+            "value": "${AZURE_AI_SEARCH_INDEX_NAME}"
+          },
+          {
+            "name": "WebCrawler__MaxPagesToCrawl",
+            "value": "${WEB_CRAWLER_MAX_PAGES_TO_CRAWL=1000}"
+          },
+          {
+            "name": "WebCrawler__MaxCrawlDepth",
+            "value": "${WEB_CRAWLER_MAX_CRAWL_DEPTH=5}"
+          },
+          {
+            "name": "WebCrawler__MaxRetryAttempts",
+            "value": "${WEB_CRAWLER_MAX_RETRY_ATTEMPTS=3}"
+          },
+          {
+            "name": "WebCrawler__MaxBatchSize",
+            "value": "${WEB_CRAWLER_MAX_BATCH_SIZE=100}"
+          }
+        ]
+      }
+    },
+    "principalId": {
+      "value": "${AZURE_PRINCIPAL_ID}"
+    }
+  }
+}
