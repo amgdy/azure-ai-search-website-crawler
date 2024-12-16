@@ -37,7 +37,16 @@ The application is built using the following technologies:
     cd azure-ai-search-website-crawler
     ```
 
-2. **Deploy the Application:**
+2. **Login to Azure:**
+
+    Authenticate with both Azure CLI and Azure Developer CLI.
+
+    ```sh
+    az login
+    azd auth login
+    ```
+
+3. **Deploy the Application:**
 
     Use the Azure Developer CLI to deploy the application.
 

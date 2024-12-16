@@ -31,11 +31,15 @@ echo ""
 
 while IFS='=' read -r key value; do
     if [[ $key =~ ^[^#]*$ ]]; then
-        export "$key"="${value%\"}"
+        value="${value%\"}"
+        value="${value#\"}"
+        export "$key"="$value"
     fi
 done < <(azd env get-values)
 
 echo "Successfully loaded env vars from .env file."
+
+echo "Is provisioned: ${AZD_IS_PROVISIONED,,}"
 
 if [[ "${AZD_IS_PROVISIONED,,}" != "true" ]]; then
     echo "Azure resources are not provisioned. Please run 'azd provision' to set up the necessary resources before running this script."
@@ -47,7 +51,7 @@ environment="$AZURE_CONTAINER_APPS_ENVIRONMENT_NAME"
 job_name="$AZURE_CONTAINER_APP_JOB_NAME"
 login_server="$AZURE_CONTAINER_REGISTRY_LOGIN_SERVER"
 tag="azd-$(date +%Y%m%d%H%M%S)"
-image="$login_server/job:$tag"
+image="$login_server/crawler-job:$tag"
 
 echo "Resource Group: $resource_group"
 echo "Environment: $environment"

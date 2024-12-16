@@ -56,7 +56,7 @@ $jobName = $($env:AZURE_CONTAINER_APP_JOB_NAME)
 $loginServer = $($env:AZURE_CONTAINER_REGISTRY_LOGIN_SERVER)
 $tag = "azd"
 $tag += "-$(Get-Date -Format 'yyyyMMddHHmmss')"
-$image = "$($env:AZURE_CONTAINER_REGISTRY_LOGIN_SERVER)/job:$($tag)"
+$image = "$($env:AZURE_CONTAINER_REGISTRY_LOGIN_SERVER)/crawler-job:$($tag)"
 
 Write-Host "Resource Group: $resourceGroup" -ForegroundColor Green
 Write-Host "Environment: $environment" -ForegroundColor Green
