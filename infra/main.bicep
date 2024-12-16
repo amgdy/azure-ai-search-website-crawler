@@ -59,7 +59,7 @@ param webCrawlerMaxBatchSize int = 100
 
 var tags = {
   'azd-env-name': environmentName
-  'azd-repo': 'https://github.com/amgdy/azure-ai-search-website-crawler'
+  'azd-repo-url': 'https://github.com/amgdy/azure-ai-search-website-crawler'
 }
 
 // Organize resources in a resource group

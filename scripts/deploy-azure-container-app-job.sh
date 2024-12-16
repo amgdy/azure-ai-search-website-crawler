@@ -1,22 +1,26 @@
 #!/bin/bash
 
+set -euo pipefail
+
+# Function to check if a command exists
+command_exists() {
+    command -v "$1" &> /dev/null
+}
+
 # Check if 'azd' command is available
-if ! command -v azd &> /dev/null
-then
+if ! command_exists azd; then
     echo "Error: 'azd' command is not found. Please ensure you have 'azd' installed. For installation instructions, visit: https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/install-azd"
     exit 1
 fi
 
 # Check if 'az' command is available
-if ! command -v az &> /dev/null
-then
+if ! command_exists az; then
     echo "Error: 'az' command is not found. Please ensure you have 'az' installed. For installation instructions, visit: https://docs.microsoft.com/en-us/cli/azure/install-azure-cli"
     exit 1
 fi
 
 # Check if 'docker' command is available
-if ! command -v docker &> /dev/null
-then
+if ! command_exists docker; then
     echo "Error: 'docker' command is not found. Please ensure you have 'docker' installed. For installation instructions, visit: https://docs.docker.com/get-docker/"
     exit 1
 fi
@@ -31,70 +35,49 @@ while IFS='=' read -r key value; do
     fi
 done < <(azd env get-values)
 
-if [ $? -ne 0 ]; then
-    echo "Failed to load environment variables from azd environment"
-    exit $?
-else
-    echo "Successfully loaded env vars from .env file."
-fi
+echo "Successfully loaded env vars from .env file."
 
-if [ "$AZD_IS_PROVISIONED" != "true" ]; then
+if [[ "${AZD_IS_PROVISIONED,,}" != "true" ]]; then
     echo "Azure resources are not provisioned. Please run 'azd provision' to set up the necessary resources before running this script."
     exit 1
 fi
 
-resourceGroup=$AZURE_RESOURCE_GROUP_NAME
-environment=$AZURE_CONTAINER_APPS_ENVIRONMENT_NAME
-jobName=$AZURE_CONTAINER_APP_JOB_NAME
-loginServer=$AZURE_CONTAINER_REGISTRY_LOGIN_SERVER
+resource_group="$AZURE_RESOURCE_GROUP_NAME"
+environment="$AZURE_CONTAINER_APPS_ENVIRONMENT_NAME"
+job_name="$AZURE_CONTAINER_APP_JOB_NAME"
+login_server="$AZURE_CONTAINER_REGISTRY_LOGIN_SERVER"
 tag="azd-$(date +%Y%m%d%H%M%S)"
-image="$AZURE_CONTAINER_REGISTRY_LOGIN_SERVER/job:$tag"
+image="$login_server/job:$tag"
 
-echo "Resource Group: $resourceGroup"
+echo "Resource Group: $resource_group"
 echo "Environment: $environment"
-echo "Job Name: $jobName"
-echo "Login Server: $loginServer"
+echo "Job Name: $job_name"
+echo "Login Server: $login_server"
 echo "Image: $image"
 
-projectDir=$(realpath "$BASH_SOURCE/../app/AzureAiSearchWebsiteCrawler")
+project_dir=$(realpath "$(dirname "$0")/../app/AzureAiSearchWebsiteCrawler")
 
-echo "Project Directory: $projectDir"
+echo "Project Directory: $project_dir"
 
 echo "Building Docker image..."
-docker build -t "$image" "$projectDir"
-if [ $? -ne 0 ]; then
-    echo "Docker build failed"
-    exit $?
-fi
+docker build -t "$image" "$project_dir"
 echo "Docker build succeeded"
 
 echo "Logging into Azure Container Registry..."
-az acr login --name $loginServer
-if [ $? -ne 0 ]; then
-    echo "ACR login failed"
-    exit $?
-fi
+az acr login --name "$login_server"
 echo "ACR login succeeded"
 
 echo "Pushing Docker image..."
-docker push $image
-if [ $? -ne 0 ]; then
-    echo "Docker push failed"
-    exit $?
-fi
+docker push "$image"
 echo "Docker push succeeded"
 
 echo "Updating Azure Container App Job..."
-az containerapp job update --name $jobName --resource-group $resourceGroup --image $image
-if [ $? -ne 0 ]; then
-    echo "Container App Job update failed"
-    exit $?
-fi
+az containerapp job update --name "$job_name" --resource-group "$resource_group" --image "$image"
 echo "Container App Job update succeeded"
 
 echo "Deployed Azure Container App Job successfully"
 
-portalUrl="https://portal.azure.com/#@$AZURE_TENANT_ID/resource$AZURE_CONTAINER_APP_JOB_URL"
+portal_url="https://portal.azure.com/#@$AZURE_TENANT_ID/resource$AZURE_CONTAINER_APP_JOB_URL"
 
 echo -n "You can view the Container App Job in the Azure Portal: "
-echo "$portalUrl"
+echo "$portal_url"

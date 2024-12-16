@@ -3,10 +3,16 @@
 {
 	"name": "Azure AI Search Web Crawler",
 	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-	"image": "mcr.microsoft.com/devcontainers/dotnet:1-9.0-bookworm",
+	"image": "mcr.microsoft.com/devcontainers/dotnet:9.0",
 	"features": {
-		"ghcr.io/devcontainers/features/azure-cli:1": {},
-		"ghcr.io/devcontainers/features/dotnet:2": {},
+		"ghcr.io/devcontainers/features/azure-cli:1": {
+			"extensions": [
+				"containerapp"
+			]
+		},
+		"ghcr.io/devcontainers/features/dotnet:2": {
+			"version": "9.0"
+		},
 		"ghcr.io/devcontainers/features/powershell:1": {},
 		"ghcr.io/azure/azure-dev/azd:0": {},
 		"ghcr.io/devcontainers/features/git:1": {}
@@ -16,12 +22,15 @@
 			"extensions": [
 				"ms-azuretools.azure-dev",
 				"ms-azuretools.vscode-bicep",
+				"ms-azuretools.vscode-azurecontainerapps",
 				"esbenp.prettier-vscode",
-				"ms-dotnettools.csdevkit"
+				"ms-dotnettools.csdevkit",
+				"ms-vscode.azurecli"
 			]
 		}
 	},
-	"remoteUser": "vscode"
+	"remoteUser": "vscode",
+	"postCreateCommand": "dotnet restore app/AzureAiSearchWebsiteCrawler"
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
