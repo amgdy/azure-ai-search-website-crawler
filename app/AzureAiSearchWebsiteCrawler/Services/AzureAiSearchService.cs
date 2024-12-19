@@ -4,12 +4,12 @@ using Azure.Search.Documents;
 using Azure.Search.Documents.Indexes;
 using Azure.Search.Documents.Indexes.Models;
 using Azure.Search.Documents.Models;
+using AzureAiSearchWebsiteCrawler.Utilities.Chunking;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.ML.Tokenizers;
 
 namespace AzureAiSearchWebsiteCrawler.Services;
-
 
 public class AzureAiSearchService
 {
@@ -18,6 +18,7 @@ public class AzureAiSearchService
     private readonly ILogger<AzureAiSearchService> _logger;
     private readonly IOptions<AzureOpenAiOptions> _openAiOptions;
     private readonly AzureOpenAiService _azureOpenAiService;
+    private readonly ITextSplitter textSplitter;
     private readonly string _indexName;
     private readonly Tokenizer _tokenizer;
 
@@ -25,11 +26,13 @@ public class AzureAiSearchService
         IOptions<AzureAiSearchOptions> searchOptions,
         IOptions<WebCrawlerOptions> crawlerOptions,
         IOptions<AzureOpenAiOptions> openAiOptions,
-        AzureOpenAiService azureOpenAiService)
+        AzureOpenAiService azureOpenAiService,
+        ITextSplitter _textSplitter)
     {
         _logger = logger;
         _openAiOptions = openAiOptions;
         _azureOpenAiService = azureOpenAiService;
+        textSplitter = _textSplitter;
         var endpoint = searchOptions.Value.EndpointUrl;
         _indexName = searchOptions.Value.IndexName;
 
@@ -162,80 +165,40 @@ public class AzureAiSearchService
         _logger.LogInformation("Index '{IndexName}' created successfully", searchIndex.Value.Name);
     }
 
-    public async Task IndexPagesAsync(IEnumerable<CrawledWebPage> crawledWebPages)
+    public async Task IndexPagesAsync(IList<WebPageContent> crawledWebPages)
     {
         _logger.LogInformation("Starting IndexPagesAsync method");
 
-        var documents = new List<WebPageDocument>();
+        var documents = new List<WebPageSearchDocument>();
+
         foreach (var crawledWebPage in crawledWebPages)
         {
-            _logger.LogInformation("Processing crawled web page: {Url}", crawledWebPage.Url);
+            var textChunks = textSplitter.SplitTextPages([new TextPage(0, 0, crawledWebPage.Content)]).ToList();
+            var textChunksContent = textChunks.Select(x => x.Text).ToList();
+            var embeddings = await _azureOpenAiService.GenerateEmbeddingsAsync(textChunksContent);
 
-            const double overlapPercentage = 0.13;
-            var contentChunks = TextSplitter.SplitTextWithOverlapNoWordSplit(
-                crawledWebPage.Content,
-                _openAiOptions.Value.EmbeddingModelMaxTokens,
-                overlapPercentage,
-                _tokenizer,
-                safetyMargin: 0.8);
-
-            // Ensure all chunks are within the maximum token size
-            var adjustedContentChunks = new List<string>();
-            foreach (var chunk in contentChunks)
+            for (int chunkIndex = 0; chunkIndex < textChunks.Count; chunkIndex++)
             {
-                if (_tokenizer.CountTokens(chunk) > _openAiOptions.Value.EmbeddingModelMaxTokens)
-                {
-                    _logger.LogInformation("Chunk exceeds max token size, re-chunking");
-
-                    var smallerChunks = TextSplitter.SplitTextWithOverlapNoWordSplit(
-                        chunk,
-                        _openAiOptions.Value.EmbeddingModelMaxTokens,
-                        overlapPercentage,
-                        _tokenizer,
-                        safetyMargin: 0.8);
-
-                    adjustedContentChunks.AddRange(smallerChunks);
-                }
-                else
-                {
-                    adjustedContentChunks.Add(chunk);
-                }
-            }
-            contentChunks = adjustedContentChunks;
-
-            for (int i = 0; i < contentChunks.Count; i++)
-            {
-                var content = contentChunks[i];
-                _logger.LogInformation("Processing chunk {ChunkNumber} for page {Url}", i + 1, crawledWebPage.Url);
-                _logger.LogInformation("Chunk Tokens: {TokensCount}", _tokenizer.CountTokens(content));
-
-                if (string.IsNullOrWhiteSpace(content))
-                {
-                    _logger.LogWarning("Skipping empty content chunk");
-                    continue;
-                }
-
-                var chunkNumber = $"{(i + 1):00}_{contentChunks.Count:00}";
-
+                var textChunk = textChunks[chunkIndex];
+                var chunkNumber = $"{(chunkIndex + 1):00}_{textChunks.Count:00}";
                 var contentHash = crawledWebPage.Content.ComputeSha256Hash();
-                var chunkHash = content.ComputeSha256Hash();
+                var chunkHash = textChunk.Text.ComputeSha256Hash();
                 var id = $"{contentHash}_{chunkHash}";
-
                 _logger.LogInformation("Processing chunk {ChunkNumber} for page {Url}", chunkNumber, crawledWebPage.Url);
 
-                var embedding = await _azureOpenAiService.GenerateEmbeddingAsync(content);
-                var document = new WebPageDocument
+                //var embedding = await _azureOpenAiService.GenerateEmbeddingAsync(textChunk.Text);
+
+                var document = new WebPageSearchDocument
                 {
                     Id = id,
                     Url = crawledWebPage.Url.ToString(),
                     Title = crawledWebPage.Title,
-                    Content = content,
-                    ContentVector = embedding,
+                    Content = textChunk.Text,
+                    ContentVector = embeddings[chunkIndex],
                     ChunkNumber = chunkNumber
                 };
 
                 documents.Add(document);
-
                 _logger.LogInformation("Added document with ID {DocumentId} to the batch", id);
             }
         }
