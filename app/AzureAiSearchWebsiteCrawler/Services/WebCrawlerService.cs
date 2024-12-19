@@ -1,21 +1,15 @@
 ﻿using Abot2.Crawler;
 using Abot2.Poco;
-using AngleSharp.Dom;
 using AngleSharp.Html.Dom;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AzureAiSearchWebsiteCrawler.Services;
 public class WebCrawlerService(ILogger<WebCrawlerService> logger,
     IOptions<WebCrawlerOptions> options,
-    AzureAiSearchService azureAiSearchService)
+    BlockingCollection<WebPageContent> processingQueue)
 {
     private CrawlConfiguration CreateCrawlConfiguration()
     {
@@ -33,8 +27,6 @@ public class WebCrawlerService(ILogger<WebCrawlerService> logger,
     }
 
     private static int totalCrawledPages = 0;
-    private static readonly ConcurrentDictionary<string, CrawledWebPage> crawledPages = new();
-    private static readonly SemaphoreSlim semaphore = new(1, 1);
 
     public async Task StartCrawlAsync()
     {
@@ -95,65 +87,17 @@ public class WebCrawlerService(ILogger<WebCrawlerService> logger,
             return;
         }
 
-        if (!crawledPages.TryAdd(uri, crawledWebPage))
-        {
-            logger.LogInformation("Page {Uri} has already been processed.", uri);
-            return;
-        }
-
-        logger.LogInformation("Page {Uri} added to crawled pages collection.", uri);
-
-        if (crawledPages.Count >= 10)
-        {
-            logger.LogInformation("Crawled pages count reached threshold, starting batch indexing.");
-            semaphore.Wait();
-            try
-            {
-                if (crawledPages.Count >= 10)
-                {
-                    IndexCrawledPagesBatchAsync().GetAwaiter().GetResult();
-                }
-            }
-            finally
-            {
-                semaphore.Release();
-            }
-        }
+        processingQueue.Add(crawledWebPage);
     }
 
-    private async Task IndexCrawledPagesBatchAsync()
-    {
-        var pagesToIndex = new List<CrawledWebPage>();
-
-        foreach (var kvp in crawledPages)
-        {
-            if (pagesToIndex.Count >= 10)
-            {
-                break;
-            }
-
-            pagesToIndex.Add(kvp.Value);
-            crawledPages.TryRemove(kvp.Key, out _);
-        }
-
-        logger.LogInformation("Indexing batch of {BatchSize} pages.", pagesToIndex.Count);
-        await azureAiSearchService.IndexPagesAsync(pagesToIndex);
-    }
-
-    private CrawledWebPage CreateCrawledWebPage(CrawledPage crawledPage)
+    private WebPageContent CreateCrawledWebPage(CrawledPage crawledPage)
     {
         var document = crawledPage.AngleSharpHtmlDocument;
         var title = document.Title;
 
-        var excludedElementTypes = new List<Type>
-        {
-            typeof(IHtmlScriptElement),
-            typeof(IHtmlStyleElement)
-        };
-
-        var excludedElements = document.Body.Descendents()
-            .Where(n => excludedElementTypes.Contains(n.GetType()))
-            .Cast<IHtmlElement>()
+        // Remove script and style elements
+        var excludedElements = document.All
+            .Where(n => n is IHtmlScriptElement || n is IHtmlStyleElement)
             .ToList();
 
         foreach (var element in excludedElements)
@@ -161,10 +105,11 @@ public class WebCrawlerService(ILogger<WebCrawlerService> logger,
             element.Remove();
         }
 
-        var content = document.Body.TextContent;
+        var content = TextCleanup.Cleanup(document.Body.TextContent);
 
-        logger.LogInformation("Created CrawledWebPage for {Uri} with title '{Title}' and content length {ContentLength}", crawledPage.Uri.AbsoluteUri, title, content.Length);
+        logger.LogInformation("Created CrawledWebPage for {Uri} with title '{Title}' and content length {ContentLength}",
+            crawledPage.Uri.AbsoluteUri, title, content.Length);
 
-        return new CrawledWebPage(crawledPage.Uri, title, content);
+        return new WebPageContent(crawledPage.Uri, title, content);
     }
 }

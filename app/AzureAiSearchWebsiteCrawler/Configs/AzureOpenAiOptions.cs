@@ -17,5 +17,5 @@ public class AzureOpenAiOptions : ConfigBase
     public int EmbeddingModelDimensions { get; set; } = 1536;
 
     [Required]
-    public int EmbeddingModelMaxTokens { get; set; } = 8191;
+    public int EmbeddingModelMaxTokens { get; set; } = 8100;
 }
