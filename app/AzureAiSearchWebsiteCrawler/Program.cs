@@ -1,5 +1,6 @@
 ﻿using Azure.Monitor.OpenTelemetry.AspNetCore;
 using AzureAiSearchWebsiteCrawler.Services;
+using AzureAiSearchWebsiteCrawler.Utilities.Chunking;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -7,18 +8,32 @@ using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using System.Collections.Concurrent;
 
 
 var builder = Host.CreateApplicationBuilder(args);
 
+builder.Logging.AddSimpleConsole(options =>
+{
+    options.IncludeScopes = true;
+    options.TimestampFormat = "[HH:mm:ss] ";
+    options.ColorBehavior = Microsoft.Extensions.Logging.Console.LoggerColorBehavior.Enabled;
+});
+
+if (OperatingSystem.IsLinux())
+{
+    builder.Logging.AddSystemdConsole(options =>
+    {
+        options.IncludeScopes = true;
+        options.TimestampFormat = "[HH:mm:ss] ";
+    });
+}
+
 builder.Services.ConfigureOptions<AzureOpenAiOptions>(builder.Configuration);
 builder.Services.ConfigureOptions<AzureAiSearchOptions>(builder.Configuration);
 builder.Services.ConfigureOptions<WebCrawlerOptions>(builder.Configuration);
+builder.Services.ConfigureOptions<TextSplitterOptions>(builder.Configuration);
 
-builder.Services.AddOptionsWithValidateOnStart<AzureOpenAiOptions>().Configure(options =>
-{
-
-});
 
 builder.Logging.AddOpenTelemetry(logging =>
 {
@@ -61,11 +76,13 @@ if (useOtlpExporter)
 }
 
 
-builder.Services.AddTransient<WebCrawlerService>();
-builder.Services.AddTransient<AzureAiSearchService>();
-builder.Services.AddTransient<AzureOpenAiService>();
-
+builder.Services.AddSingleton<WebCrawlerService>();
+builder.Services.AddSingleton<AzureAiSearchService>();
+builder.Services.AddSingleton<AzureOpenAiService>();
+builder.Services.AddSingleton<ITextSplitter, SentenceTextSplitter>();
+builder.Services.AddSingleton<BlockingCollection<WebPageContent>>();
 builder.Services.AddHostedService<ApplicationStartupService>();
+builder.Services.AddHostedService<BatchProcessingService>();
 
 
 var host = builder.Build();

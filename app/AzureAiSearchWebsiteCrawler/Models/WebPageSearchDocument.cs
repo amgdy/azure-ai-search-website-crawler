@@ -3,7 +3,7 @@
 namespace AzureAiSearchWebsiteCrawler.Models;
 
 
-public class WebPageDocument
+public class WebPageSearchDocument
 {
     [JsonPropertyName("id")]
     public string Id { get; set; }
