@@ -58,22 +58,26 @@ The application is built using the following technologies:
 
 The following environment variables are required for the application to run. These can be set in the `.env` file or directly in the deployment scripts.
 
-| Variable Name                          | Description                                      | Default Value                          |
-|----------------------------------------|--------------------------------------------------|----------------------------------------|
-| `APPLICATIONINSIGHTS_CONNECTION_STRING`| Connection string for Azure Application Insights |                                        |
-| `AzureOpenAi__EndpointUrl`             | Endpoint URL for Azure OpenAI service            |                                        |
-| `AzureOpenAi__ApiKey`                  | API key for Azure OpenAI service                 |                                        |
-| `AzureAiSearch__EndpointUrl`           | Endpoint URL for Azure AI Search service         |                                        |
-| `AzureAiSearch__ApiKey`                | API key for Azure AI Search service              |                                        |
-| `WebCrawler__Url`                      | URL of the website to crawl                      |                                        |
-| `AzureOpenAi__EmbeddingModelDeployment`| Deployment name for the Azure OpenAI embedding model | `text-embedding-ada-002`               |
-| `AzureOpenAi__EmbeddingModelDimensions`| Dimensions for the Azure OpenAI embedding model  | `1536`                                 |
-| `AzureOpenAi__EmbeddingModelMaxTokens` | Maximum tokens for the Azure OpenAI embedding model | `8190`                                 |
-| `AzureAiSearch__IndexName`             | Index name for the Azure AI Search service       |                                        |
-| `WebCrawler__MaxPagesToCrawl`          | Maximum pages to crawl for the web crawler       | `1000`                                 |
-| `WebCrawler__MaxCrawlDepth`            | Maximum crawl depth for the web crawler          | `5`                                    |
-| `WebCrawler__MaxRetryAttempts`         | Maximum retry attempts for the web crawler       | `3`                                    |
-| `WebCrawler__MaxBatchSize`             | Maximum batch size for the web crawler           | `100`                                  |
+| Variable Name                          | Description                                      | Required | Default Value                          |
+|----------------------------------------|--------------------------------------------------|----------|----------------------------------------|
+| `APPLICATIONINSIGHTS_CONNECTION_STRING`| Connection string for Azure Application Insights | ✔️       |                                        |
+| `AzureAiSearch__ApiKey`                | API key for Azure AI Search service              | ❌       |                                        |
+| `AzureAiSearch__EndpointUrl`           | Endpoint URL for Azure AI Search service         | ✔️       |                                        |
+| `AzureAiSearch__IndexName`             | Index name for the Azure AI Search service       | ❌       |                                        |
+| `AzureOpenAi__ApiKey`                  | API key for Azure OpenAI service                 | ❌       |                                        |
+| `AzureOpenAi__EmbeddingModelDeployment`| Deployment name for the Azure OpenAI embedding model | ✔️  | `text-embedding-ada-002`               |
+| `AzureOpenAi__EmbeddingModelDimensions`| Dimensions for the Azure OpenAI embedding model  | ✔️       | `1536`                                 |
+| `AzureOpenAi__EmbeddingModelMaxTokens` | Maximum tokens for the Azure OpenAI embedding model | ✔️  | `8100`                                 |
+| `AzureOpenAi__EndpointUrl`             | Endpoint URL for Azure OpenAI service            | ✔️       |                                        |
+| `TextSplitter__DefaultOverlapPercent`  | Default overlap percentage for the text splitter | ✔️       | `10`                                   |
+| `TextSplitter__DefaultSectionLength`   | Default section length for the text splitter     | ✔️       | `1000`                                 |
+| `TextSplitter__MaxTokensPerSection`    | Maximum tokens per section for the text splitter | ✔️       | `500`                                  |
+| `TextSplitter__SentenceSearchLimit`    | Sentence search limit for the text splitter      | ✔️       | `100`                                  |
+| `WebCrawler__MaxBatchSize`             | Maximum batch size for the web crawler           | ✔️       | `100`                                  |
+| `WebCrawler__MaxCrawlDepth`            | Maximum crawl depth for the web crawler          | ✔️       | `5`                                    |
+| `WebCrawler__MaxPagesToCrawl`          | Maximum pages to crawl for the web crawler       | ✔️       | `300`                                  |
+| `WebCrawler__MaxRetryAttempts`         | Maximum retry attempts for the web crawler       | ✔️       | `3`                                    |
+| `WebCrawler__Url`                      | URL of the website to crawl                      | ✔️       |                                        |
 
 ### Running the Application
 
