@@ -22,12 +22,18 @@ internal class ApplicationStartupService(ILogger<ApplicationStartupService> logg
         try
         {
             logger.LogInformation("Initiating the index creation process.");
-            await azureAiSearchService.CreateIndexAsync();
+            await azureAiSearchService.CreateIndexAsync(stoppingToken);
             logger.LogInformation("Index creation completed successfully.");
 
             logger.LogInformation("Initiating the web crawling process.");
             await webCrawlerService.StartCrawlAsync();
             logger.LogInformation("Web crawling completed successfully.");
+
+            while (!BatchProcessingService.IsProcessingCompleted)
+            {
+                logger.LogInformation("Waiting for batch processing to complete...");
+                await Task.Delay(1000, stoppingToken);
+            }
         }
         catch (Exception ex)
         {
