@@ -77,7 +77,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "Docker build succeeded" -ForegroundColor Green
 
 Write-Host "Logging into Azure Container Registry..." -ForegroundColor Green
-az acr login --name $loginServer
+az acr login --name $loginServer --resource-group $resourceGroup
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ACR login failed" -ForegroundColor Red
     exit $LASTEXITCODE
@@ -103,6 +103,8 @@ Write-Host "Container App Job update succeeded" -ForegroundColor Green
 Write-Host "Deployed Azure Container App Job successfully" -ForegroundColor Green
 
 $portalUrl = "https://portal.azure.com/#@$($env:AZURE_TENANT_ID)/resource$($env:AZURE_CONTAINER_APP_JOB_URL)"
+
+Write-Host "The job is deployed with manual trigger mode. To start crawling the website, open the Azure Portal using the link below and manually start the job." -ForegroundColor Yellow
 
 Write-Host "You can view the Container App Job in the Azure Portal: " -ForegroundColor Green -NoNewline
 Write-Host "$portalUrl" -ForegroundColor Blue

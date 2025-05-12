@@ -18,4 +18,6 @@ public class WebCrawlerOptions : ConfigBase
 
     [Required]
     public int MaxBatchSize { get; set; } = 100;
+
+    public int ProcessingTimeoutMinutes { get; set; } = 60;
 }

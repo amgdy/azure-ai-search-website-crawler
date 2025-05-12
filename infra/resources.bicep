@@ -36,16 +36,17 @@ var azureAiSearchWebsiteCrawlerEnv = map(
 )
 
 // User assigned identity
-module userAssignedIdentity 'br/public:avm/res/managed-identity/user-assigned-identity:0.4.0' = {
+module userAssignedIdentity 'br/public:avm/res/managed-identity/user-assigned-identity:0.4.1' = {
   name: 'azureAiSearchWebsiteCrawleridentity'
   params: {
     name: '${abbrs.managedIdentityUserAssignedIdentities}${resourceToken}-${appShortName}'
     location: location
+    tags: tags
   }
 }
 
 // Monitor application with Azure Monitor
-module monitoring 'br/public:avm/ptn/azd/monitoring:0.1.0' = {
+module monitoring 'br/public:avm/ptn/azd/monitoring:0.1.1' = {
   name: 'monitoring'
   params: {
     logAnalyticsName: '${abbrs.operationalInsightsWorkspaces}${resourceToken}-${appShortName}'
@@ -57,12 +58,13 @@ module monitoring 'br/public:avm/ptn/azd/monitoring:0.1.0' = {
 }
 
 // Create a keyvault to store secrets
-module keyVault 'br/public:avm/res/key-vault/vault:0.11.0' = {
+module keyVault 'br/public:avm/res/key-vault/vault:0.12.1' = {
   name: 'keyvault'
   params: {
     name: '${abbrs.keyVaultVaults}${resourceToken}-${appShortName}'
     location: location
     tags: tags
+    sku: 'standard'
     enableRbacAuthorization: false
     enablePurgeProtection: false
     enableSoftDelete: false
@@ -90,7 +92,7 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.11.0' = {
 }
 
 // Container registry
-module containerRegistry 'br/public:avm/res/container-registry/registry:0.6.0' = {
+module containerRegistry 'br/public:avm/res/container-registry/registry:0.9.1' = {
   name: 'registry'
   params: {
     name: '${abbrs.containerRegistryRegistries}${resourceToken}${appShortName}'
@@ -99,6 +101,7 @@ module containerRegistry 'br/public:avm/res/container-registry/registry:0.6.0' =
     exportPolicyStatus: 'enabled'
     publicNetworkAccess: 'Enabled'
     tags: tags
+    acrSku: 'Basic'
     roleAssignments: [
       {
         principalId: userAssignedIdentity.outputs.principalId
@@ -113,13 +116,14 @@ module containerRegistry 'br/public:avm/res/container-registry/registry:0.6.0' =
 }
 
 // Container apps environment
-module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.8.1' = {
+module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.10.2' = {
   name: 'container-apps-environment'
   params: {
-    logAnalyticsWorkspaceResourceId: monitoring.outputs.logAnalyticsWorkspaceResourceId
     name: '${abbrs.appManagedEnvironments}${resourceToken}-${appShortName}'
     location: location
     zoneRedundant: false
+    logAnalyticsWorkspaceResourceId: monitoring.outputs.logAnalyticsWorkspaceResourceId
+    tags: tags
   }
 }
 
@@ -133,7 +137,7 @@ module latestImage './modules/fetch-container-image.bicep' = {
 }
 
 // Container apps job
-module containerAppJob 'br/public:avm/res/app/job:0.5.1' = {
+module containerAppJob 'br/public:avm/res/app/job:0.6.0' = {
   name: 'container-apps-job'
   params: {
     name: '${abbrs.appContainerAppsJobs}${resourceToken}-${appShortName}'

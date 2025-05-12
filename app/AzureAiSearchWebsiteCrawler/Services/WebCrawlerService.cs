@@ -3,13 +3,12 @@ using Abot2.Poco;
 using AngleSharp.Html.Dom;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Collections.Concurrent;
 using System.Net;
 
 namespace AzureAiSearchWebsiteCrawler.Services;
 public class WebCrawlerService(ILogger<WebCrawlerService> logger,
     IOptions<WebCrawlerOptions> options,
-    BlockingCollection<WebPageContent> processingQueue)
+    ItemQueue<WebPageContent> queue)
 {
     private CrawlConfiguration CreateCrawlConfiguration()
     {
@@ -26,29 +25,36 @@ public class WebCrawlerService(ILogger<WebCrawlerService> logger,
         };
     }
 
-    private static int totalCrawledPages = 0;
+    private static int _totalCrawledPages = 0;
 
     public async Task StartCrawlAsync()
     {
         logger.LogInformation("Starting web crawl of {Url}", options.Value.Url);
-        var crawlConfig = CreateCrawlConfiguration();
-        var crawler = new PoliteWebCrawler(crawlConfig);
-        crawler.PageCrawlStarting += OnPageCrawlStarting;
-        crawler.PageCrawlCompleted += OnPageCrawlCompleted;
-        crawler.PageLinksCrawlDisallowed += (sender, e) =>
+        try
         {
-            logger.LogInformation("Did not crawl the links on page {Uri} due to {Reason}", e.CrawledPage.Uri.AbsoluteUri, e.DisallowedReason);
-        };
+            var crawlConfig = CreateCrawlConfiguration();
+            var crawler = new PoliteWebCrawler(crawlConfig);
+            crawler.PageCrawlStarting += OnPageCrawlStarting;
+            crawler.PageCrawlCompleted += OnPageCrawlCompleted;
+            crawler.PageLinksCrawlDisallowed += (sender, e) =>
+            {
+                logger.LogInformation("Did not crawl the links on page {Uri} due to {Reason}", e.CrawledPage.Uri.AbsoluteUri, e.DisallowedReason);
+            };
 
-        var result = await crawler.CrawlAsync(new Uri(options.Value.Url));
+            var result = await crawler.CrawlAsync(new Uri(options.Value.Url));
 
-        if (result.ErrorOccurred)
-        {
-            logger.LogError("Crawl of {RootUri} ({TotalCrawledPages} pages) completed with error: {ErrorMessage}", result.RootUri.AbsoluteUri, totalCrawledPages, result.ErrorException.Message);
+            if (result.ErrorOccurred)
+            {
+                logger.LogError("Crawl of {RootUri} ({TotalCrawledPages} pages) completed with error: {ErrorMessage}", result.RootUri.AbsoluteUri, _totalCrawledPages, result.ErrorException.Message);
+            }
+            else
+            {
+                logger.LogInformation("Crawl of {RootUri} ({TotalCrawledPages} pages) completed without error.", result.RootUri.AbsoluteUri, _totalCrawledPages);
+            }
         }
-        else
+        finally
         {
-            logger.LogInformation("Crawl of {RootUri} ({TotalCrawledPages} pages) completed without error.", result.RootUri.AbsoluteUri, totalCrawledPages);
+            queue.MarkCompleted();
         }
     }
 
@@ -87,7 +93,7 @@ public class WebCrawlerService(ILogger<WebCrawlerService> logger,
             return;
         }
 
-        processingQueue.Add(crawledWebPage);
+        queue.Enqueue(crawledWebPage);
     }
 
     private WebPageContent CreateCrawledWebPage(CrawledPage crawledPage)

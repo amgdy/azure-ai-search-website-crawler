@@ -1,54 +1,54 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Collections.Concurrent;
 
 namespace AzureAiSearchWebsiteCrawler.Services;
 
-public class BatchProcessingService(BlockingCollection<WebPageContent> processingQueue,
+public class BatchProcessingService(ILogger<BatchProcessingService> logger,
     AzureAiSearchService azureAiSearchService,
-    ILogger<BatchProcessingService> logger,
-    IOptions<WebCrawlerOptions> options) : BackgroundService
+    IOptions<WebCrawlerOptions> options,
+    ItemQueue<WebPageContent> webPageContentQueue) : BackgroundService
 {
-    private readonly int _batchSize = options.Value.MaxBatchSize;
+    private readonly int _maxBatchSize = options.Value.MaxBatchSize;
+    public static bool IsProcessingCompleted { get; internal set; }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("Batch processing service started.");
-        logger.LogInformation("Batch size: {BatchSize}", _batchSize);
+        logger.LogInformation("Batch processing service started. Max batch size: {BatchSize}", _maxBatchSize);
 
-        var batch = new List<WebPageContent>();
-
-        try
+        while (!webPageContentQueue.IsCompleted)
         {
-            while (!stoppingToken.IsCancellationRequested)
+            var webPageContentBatch = new List<WebPageContent>();
+            while (webPageContentBatch.Count < _maxBatchSize && webPageContentQueue.TryDequeue(out var webPageContent))
             {
-                while (batch.Count < _batchSize && processingQueue.TryTake(out var webPageContent, Timeout.Infinite, stoppingToken))
-                {
-                    batch.Add(webPageContent);
-                }
+                logger.LogDebug("Dequeued item for batch. Current batch size: {CurrentBatchSize}", webPageContentBatch.Count + 1);
 
-                if (batch.Count > 0)
-                {
-                    logger.LogInformation("Processing batch of {BatchSize} pages.", batch.Count);
-                    await azureAiSearchService.IndexPagesAsync(batch);
-                    batch.Clear();
-                }
-            }
-        }
-        catch (OperationCanceledException ex)
-        {
-            logger.LogError(ex, "Batch processing service cancellation requested.");
-        }
-        finally
-        {
-            if (batch.Count > 0)
-            {
-                logger.LogInformation("Processing remaining batch of {BatchSize} pages before shutdown.", batch.Count);
-                await azureAiSearchService.IndexPagesAsync(batch);
+                webPageContentBatch.Add(webPageContent);
             }
 
-            logger.LogInformation("Batch processing service stopped.");
+            if (webPageContentBatch.Count > 0)
+            {
+
+                await ProcessBatchAsync(webPageContentBatch, stoppingToken);
+            }
+            else
+            {
+                logger.LogDebug("No items available for batching. Waiting for new items...");
+                await Task.Delay(200, stoppingToken); // Wait for new items
+            }
         }
+
+        logger.LogInformation("Batch processing service completed.");
+
+        IsProcessingCompleted = true;
+
+        logger.LogInformation("All items have been processed. Stopping the application.");
+    }
+
+    private async Task ProcessBatchAsync(List<WebPageContent> batch, CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Processing batch of {BatchSize} items", batch.Count);
+        await azureAiSearchService.IndexPagesAsync(batch, cancellationToken);
+        logger.LogInformation("Batch processing of {BatchSize} items completed", batch.Count);
     }
 }

@@ -59,7 +59,8 @@ public class AzureOpenAiService
 
         EmbeddingGenerationOptions embeddingOptions = new()
         {
-            Dimensions = _azureOpenAiOptions.Value.EmbeddingModelDimensions
+            // Skipping setting the model dimensions for now.
+            //Dimensions = _azureOpenAiOptions.Value.EmbeddingModelDimensions
         };
         _logger.LogDebug("Created embedding options with dimensions: {Dimensions}", _azureOpenAiOptions.Value.EmbeddingModelDimensions);
 
@@ -84,7 +85,8 @@ public class AzureOpenAiService
 
         EmbeddingGenerationOptions embeddingOptions = new()
         {
-            Dimensions = _azureOpenAiOptions.Value.EmbeddingModelDimensions
+            // Skipping setting the model dimensions for now.
+            //Dimensions = _azureOpenAiOptions.Value.EmbeddingModelDimensions
         };
         _logger.LogDebug("Created embedding options with dimensions: {Dimensions}", _azureOpenAiOptions.Value.EmbeddingModelDimensions);
 

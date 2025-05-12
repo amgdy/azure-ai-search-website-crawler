@@ -8,6 +8,7 @@ using AzureAiSearchWebsiteCrawler.Utilities.Chunking;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.ML.Tokenizers;
+using System.Threading;
 
 namespace AzureAiSearchWebsiteCrawler.Services;
 
@@ -59,7 +60,7 @@ public class AzureAiSearchService
         _logger.LogInformation("AzureAiSearchService initialized with index name: {IndexName}", _indexName);
     }
 
-    public async Task CreateIndexAsync()
+    public async Task CreateIndexAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Starting CreateIndexAsync method");
 
@@ -113,7 +114,7 @@ public class AzureAiSearchService
             IsFilterable = true
         };
 
-        var indexDefinition = new SearchIndex(_indexName)
+        var searchIndexDefinition = new SearchIndex(_indexName)
         {
             Fields = { idField, urlField, titleField, contentField, contentVectorField, chunkNumberField },
             VectorSearch = new()
@@ -160,12 +161,12 @@ public class AzureAiSearchService
             }
         };
 
-        var searchIndex = await _searchIndexClient.CreateOrUpdateIndexAsync(indexDefinition);
+        var searchIndex = await _searchIndexClient.CreateOrUpdateIndexAsync(searchIndexDefinition, cancellationToken: cancellationToken);
 
         _logger.LogInformation("Index '{IndexName}' created successfully", searchIndex.Value.Name);
     }
 
-    public async Task IndexPagesAsync(IList<WebPageContent> crawledWebPages)
+    public async Task IndexPagesAsync(IList<WebPageContent> crawledWebPages, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Starting IndexPagesAsync method");
 
@@ -175,6 +176,8 @@ public class AzureAiSearchService
         {
             var textChunks = textSplitter.SplitTextPages([new TextPage(0, 0, crawledWebPage.Content)]).ToList();
             var textChunksContent = textChunks.Select(x => x.Text).ToList();
+
+            _logger.LogInformation("Generating embeddings for {ChunkCount} chunks", textChunks.Count);
             var embeddings = await _azureOpenAiService.GenerateEmbeddingsAsync(textChunksContent);
 
             for (int chunkIndex = 0; chunkIndex < textChunks.Count; chunkIndex++)
@@ -185,8 +188,6 @@ public class AzureAiSearchService
                 var chunkHash = textChunk.Text.ComputeSha256Hash();
                 var id = $"{contentHash}_{chunkHash}";
                 _logger.LogInformation("Processing chunk {ChunkNumber} for page {Url}", chunkNumber, crawledWebPage.Url);
-
-                //var embedding = await _azureOpenAiService.GenerateEmbeddingAsync(textChunk.Text);
 
                 var document = new WebPageSearchDocument
                 {
@@ -203,7 +204,7 @@ public class AzureAiSearchService
             }
         }
 
-        var result = await _searchClient.IndexDocumentsAsync(IndexDocumentsBatch.Upload(documents));
+        var result = await _searchClient.IndexDocumentsAsync(IndexDocumentsBatch.Upload(documents), cancellationToken: cancellationToken);
 
         _logger.LogInformation("Indexed {DocumentCount} documents", result.Value.Results.Count);
     }
