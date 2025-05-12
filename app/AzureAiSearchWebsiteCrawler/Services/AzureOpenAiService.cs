@@ -70,7 +70,7 @@ public class AzureOpenAiService
         return embedding.ToFloats();
     }
 
-    public async Task<List<ReadOnlyMemory<float>>> GenerateEmbeddingsAsync(IList<string> listOfContent)
+    public async Task<List<ReadOnlyMemory<float>>> GenerateEmbeddingsAsync(IList<string> listOfContent, CancellationToken cancellationToken)
     {
         _logger.LogDebug("Starting GenerateEmbeddingAsync with list of content. Count: {Count}", listOfContent.Count);
 
@@ -98,7 +98,7 @@ public class AzureOpenAiService
             var batch = listOfContent.Skip(i).Take(_batchSize).ToList();
             _logger.LogDebug("Processing batch {BatchNumber} with {BatchSize} items.", i / _batchSize + 1, batch.Count);
 
-            var embeddings = await embeddingClient.GenerateEmbeddingsAsync(batch, embeddingOptions);
+            var embeddings = await embeddingClient.GenerateEmbeddingsAsync(batch, embeddingOptions, cancellationToken);
             _logger.LogDebug("Generated embeddings for batch {BatchNumber}.", i / _batchSize + 1);
 
             results.AddRange(embeddings.Value.Select(e => e.ToFloats()));

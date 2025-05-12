@@ -8,9 +8,7 @@ using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using System.Collections.Concurrent;
 using Serilog;
-using System.Threading.Channels;
 
 
 var jobId = Guid.NewGuid().ToString("N");
@@ -27,9 +25,7 @@ try
 {
     Log.Information("Starting host {JobId}", jobId);
 
-
     var builder = Host.CreateApplicationBuilder(args);
-
     builder.Services.AddSerilog();
 
     builder.Services.ConfigureOptions<AzureOpenAiOptions>(builder.Configuration);
@@ -83,16 +79,10 @@ try
     builder.Services.AddSingleton<AzureAiSearchService>();
     builder.Services.AddSingleton<AzureOpenAiService>();
     builder.Services.AddSingleton<ITextSplitter, SentenceTextSplitter>();
-    builder.Services.AddSingleton<BlockingCollection<WebPageContent>>();
     builder.Services.AddSingleton(new ItemQueue<WebPageContent>());
     builder.Services.AddHostedService<ApplicationStartupService>();
     builder.Services.AddHostedService<BatchProcessingService>();
-    builder.Services.AddSingleton(_ => Channel.CreateUnbounded<WebPageContent>(
-    new UnboundedChannelOptions
-    {
-        SingleReader = true,
-        SingleWriter = false
-    }));
+
 
 
     var host = builder.Build();

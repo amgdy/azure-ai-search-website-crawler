@@ -14,8 +14,10 @@ public class WebCrawlerService(ILogger<WebCrawlerService> logger,
     {
         return new CrawlConfiguration
         {
-            CrawlTimeoutSeconds = 300,
-            MaxConcurrentThreads = 10,
+            CrawlTimeoutSeconds = 500,
+            IsExternalPageCrawlingEnabled = false,
+
+            MaxConcurrentThreads = 20,
             MinCrawlDelayPerDomainMilliSeconds = 100,
             IsSslCertificateValidationEnabled = true,
             MaxPagesToCrawl = options.Value.MaxPagesToCrawl,

@@ -8,7 +8,6 @@ using AzureAiSearchWebsiteCrawler.Utilities.Chunking;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.ML.Tokenizers;
-using System.Threading;
 
 namespace AzureAiSearchWebsiteCrawler.Services;
 
@@ -19,21 +18,20 @@ public class AzureAiSearchService
     private readonly ILogger<AzureAiSearchService> _logger;
     private readonly IOptions<AzureOpenAiOptions> _openAiOptions;
     private readonly AzureOpenAiService _azureOpenAiService;
-    private readonly ITextSplitter textSplitter;
+    private readonly ITextSplitter _textSplitter;
     private readonly string _indexName;
-    private readonly Tokenizer _tokenizer;
 
     public AzureAiSearchService(ILogger<AzureAiSearchService> logger,
         IOptions<AzureAiSearchOptions> searchOptions,
         IOptions<WebCrawlerOptions> crawlerOptions,
         IOptions<AzureOpenAiOptions> openAiOptions,
         AzureOpenAiService azureOpenAiService,
-        ITextSplitter _textSplitter)
+        ITextSplitter textSplitter)
     {
         _logger = logger;
         _openAiOptions = openAiOptions;
         _azureOpenAiService = azureOpenAiService;
-        textSplitter = _textSplitter;
+        _textSplitter = textSplitter;
         var endpoint = searchOptions.Value.EndpointUrl;
         _indexName = searchOptions.Value.IndexName;
 
@@ -46,7 +44,10 @@ public class AzureAiSearchService
         if (string.IsNullOrWhiteSpace(searchOptions.Value.ApiKey))
         {
             logger.LogInformation("Azure Search API Key is not provided. Using DefaultAzureCredential.");
-            _searchIndexClient = new(endpoint, new DefaultAzureCredential());
+
+            var credential = new DefaultAzureCredential();
+
+            _searchIndexClient = new(endpoint, credential);
         }
         else
         {
@@ -55,7 +56,6 @@ public class AzureAiSearchService
         }
 
         _searchClient = _searchIndexClient.GetSearchClient(_indexName);
-        _tokenizer = TiktokenTokenizer.CreateForModel(_openAiOptions.Value.EmbeddingModelDeployment);
 
         _logger.LogInformation("AzureAiSearchService initialized with index name: {IndexName}", _indexName);
     }
@@ -174,11 +174,11 @@ public class AzureAiSearchService
 
         foreach (var crawledWebPage in crawledWebPages)
         {
-            var textChunks = textSplitter.SplitTextPages([new TextPage(0, 0, crawledWebPage.Content)]).ToList();
+            var textChunks = _textSplitter.SplitTextPages([new TextPage(0, 0, crawledWebPage.Content)]).ToList();
             var textChunksContent = textChunks.Select(x => x.Text).ToList();
 
-            _logger.LogInformation("Generating embeddings for {ChunkCount} chunks", textChunks.Count);
-            var embeddings = await _azureOpenAiService.GenerateEmbeddingsAsync(textChunksContent);
+            _logger.LogInformation("Generating embeddings for {ChunkCount} chunks for page {Url}", textChunks.Count, crawledWebPage.Url);
+            var embeddings = await _azureOpenAiService.GenerateEmbeddingsAsync(textChunksContent, cancellationToken);
 
             for (int chunkIndex = 0; chunkIndex < textChunks.Count; chunkIndex++)
             {
@@ -187,7 +187,7 @@ public class AzureAiSearchService
                 var contentHash = crawledWebPage.Content.ComputeSha256Hash();
                 var chunkHash = textChunk.Text.ComputeSha256Hash();
                 var id = $"{contentHash}_{chunkHash}";
-                _logger.LogInformation("Processing chunk {ChunkNumber} for page {Url}", chunkNumber, crawledWebPage.Url);
+                _logger.LogDebug("Preparing chunk {ChunkNumber} for page {Url} (ID: {Id})", chunkNumber, crawledWebPage.Url, id);
 
                 var document = new WebPageSearchDocument
                 {
@@ -200,12 +200,52 @@ public class AzureAiSearchService
                 };
 
                 documents.Add(document);
-                _logger.LogInformation("Added document with ID {DocumentId} to the batch", id);
             }
         }
 
-        var result = await _searchClient.IndexDocumentsAsync(IndexDocumentsBatch.Upload(documents), cancellationToken: cancellationToken);
+        _logger.LogInformation("Total documents to index: {DocumentCount}", documents.Count);
+        // For a large update, batching (up to 1000 documents per batch, or about 16 MB per batch) is recommended and will significantly improve indexing performance.
+        // https://learn.microsoft.com/en-us/rest/api/searchservice/addupdate-or-delete-documents#document-actions
 
-        _logger.LogInformation("Indexed {DocumentCount} documents", result.Value.Results.Count);
+        int batchSize = 1000;
+        int batchNumber = 0;
+        int totalIndexed = 0;
+
+        foreach (var batch in documents.Chunk(batchSize))
+        {
+            batchNumber++;
+            _logger.LogInformation("Indexing batch {BatchNumber} with {BatchSize} documents...", batchNumber, batch.Count());
+
+            var batchStopwatch = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                var result = await _searchClient.IndexDocumentsAsync(IndexDocumentsBatch.MergeOrUpload(batch), cancellationToken: cancellationToken);
+                batchStopwatch.Stop();
+
+                int succeeded = result.Value.Results.Count(r => r.Succeeded);
+                int failed = result.Value.Results.Count(r => !r.Succeeded);
+
+                totalIndexed += succeeded;
+
+                _logger.LogInformation(
+                    "Batch {BatchNumber} indexed in {ElapsedMs} ms. Succeeded: {Succeeded}, Failed: {Failed}",
+                    batchNumber, batchStopwatch.ElapsedMilliseconds, succeeded, failed);
+
+                if (failed > 0)
+                {
+                    foreach (var r in result.Value.Results.Where(r => !r.Succeeded))
+                    {
+                        _logger.LogWarning("Failed to index document ID: {Id}, Error: {ErrorMessage}", r.Key, r.ErrorMessage);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                batchStopwatch.Stop();
+                _logger.LogError(ex, "Exception while indexing batch {BatchNumber} after {ElapsedMs} ms", batchNumber, batchStopwatch.ElapsedMilliseconds);
+            }
+        }
+
+        _logger.LogInformation("Indexing complete. Total successfully indexed documents: {TotalIndexed}", totalIndexed);
     }
 }
